@@ -1,0 +1,34 @@
+[
+  {
+    "id": 101,
+    "name": "Tech Store"
+  },
+  {
+    "id": 102,
+    "name": "Keyboard World"
+  },
+  {
+    "id": 103,
+    "name": "Sound Hub"
+  },
+  {
+    "id": 104,
+    "name": "Accessory Depot"
+  },
+  {
+    "id": 105,
+    "name": "Gamer's Paradise"
+  },
+  {
+    "id": 106,
+    "name": "Watch Store"
+  },
+  {
+    "id": 107,
+    "name": "Storage Solutions"
+  },
+  {
+    "id": 108,
+    "name": "Camera World"
+  }
+]
