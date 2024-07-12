@@ -5,6 +5,7 @@ const SESSION_EVENT_STORE = 'session_event_store'
 
 
 
+
 /**
  * 
  * @param {string|null} id 
@@ -147,7 +148,7 @@ function generateProductItem(data) {
     const itemElement = document.createElement('div');
     itemElement.classList.add('flex', 'gap-5', 'p-5')
     itemElement.innerHTML = `
-        <input type="checkbox" class="mr-2 item-checkbox">
+        <input type="checkbox" class="mr-2 item-checkbox" data-id="${data.id}" data-shop-id="${data.shop_id}">
         <img class="w-[4rem] h-[4rem]" src="${data.images[0]}" alt="${data.title}">
         <div class="item-details">
             <h3 class="font-semibold">${data.title}</h3>
@@ -162,10 +163,13 @@ function generateProductItem(data) {
                     </div>
                 </div>
                 <div class="item-actions">
-                    <button class="decrease-quantity" >-</button>
+                    <button class="decrease-quantity" data-id="${data.id}" data-shop-id="${data.shop_id}">-</button>
                     <span class="quantity">${data.total}</span>
-                    <button class="increase-quantity" >+</button>
-                    <button class="delete-item" ><i class="fas fa-trash-alt"></i></button>
+                    <button class="increase-quantity" data-id="${data.id}" data-shop-id="${data.shop_id}">+</button>
+                    <button class="delete-item" data-id="${data.id}" data-shop-id="${data.shop_id}"><i class="fas fa-trash-alt"></i></button>
+                </div>
+                <div class="mt-2">
+                    <input type="text" class="note-input" data-id="${data.id}" data-shop-id="${data.shop_id}" placeholder="Tambah catatan...">
                 </div>
             </div>
         </div>
@@ -210,6 +214,123 @@ async function generateProductByShop() {
 
 async function initContentLoaded() {
     await generateProductByShop()
+}
+
+function initEventListeners() {
+    document.body.addEventListener('click', async (event) => {
+        const target = event.target;
+
+        if (target.classList.contains('increase-quantity')) {
+            const id = target.dataset.id;
+            const shopId = target.dataset.shopId;
+            const quantityElement = target.previousElementSibling;
+            let quantity = parseInt(quantityElement.textContent);
+            quantity++;
+            quantityElement.textContent = quantity;
+            await setSessionCheckoutPiecesInput(id, shopId, quantity);
+            calculateTotalPrice();
+        }
+
+        if (target.classList.contains('decrease-quantity')) {
+            const id = target.dataset.id;
+            const shopId = target.dataset.shopId;
+            const quantityElement = target.nextElementSibling;
+            let quantity = parseInt(quantityElement.textContent);
+            if (quantity > 0) {
+                quantity--;
+                quantityElement.textContent = quantity;
+                await setSessionCheckoutPiecesInput(id, shopId, quantity);
+                calculateTotalPrice();
+            }
+        }
+
+        if (target.classList.contains('delete-item')) {
+            const id = target.dataset.id;
+            const shopId = target.dataset.shopId;
+            await setSessionCheckoutDeleteInput(id, shopId, 'delete-product');
+            target.closest('.flex').remove();
+            calculateTotalPrice();
+        }
+
+        if (target.classList.contains('shop-checkbox')) {
+            const shopId = target.dataset.shopId;
+            if (target.checked) {
+                await setSessionCheckoutCheckInput(null, shopId, 'check-shop');
+            } else {
+                await setSessionCheckoutCheckInput(null, shopId, 'uncheck-shop');
+            }
+            calculateTotalPrice();
+        }
+
+        if (target.classList.contains('item-checkbox')) {
+            const id = target.dataset.id;
+            const shopId = target.dataset.shopId;
+            if (target.checked) {
+                await setSessionCheckoutCheckInput(id, shopId, 'check-product');
+            } else {
+                await setSessionCheckoutCheckInput(id, shopId, 'uncheck-product');
+            }
+            calculateTotalPrice();
+        }
+    });
+
+    document.querySelector('#selectAll').addEventListener('click', async (event) => {
+        const checkboxes = document.querySelectorAll('.item-checkbox, .shop-checkbox');
+        checkboxes.forEach(checkbox => checkbox.checked = event.target.checked);
+        if (event.target.checked) {
+            const shops = await getDataCheckout();
+            for (const shopId in shops) {
+                await setSessionCheckoutCheckInput(null, shopId, 'check-shop');
+            }
+        } else {
+            sessionStorage.removeItem(CHECKOUT_ITEM_STORAGE);
+        }
+        calculateTotalPrice();
+    });
+
+    document.querySelector('#deleteAll').addEventListener('click', () => {
+        sessionStorage.removeItem(CART_ITEM_STORAGE);
+        sessionStorage.removeItem(CHECKOUT_ITEM_STORAGE);
+        document.querySelector('#cartItems').innerHTML = '';
+        document.dispatchEvent(new CustomEvent(SESSION_EVENT_STORE));
+        calculateTotalPrice();
+    });
+
+    document.body.addEventListener('input', (event) => {
+        if (event.target.classList.contains('note-input')) {
+            const id = event.target.dataset.id;
+            const shopId = event.target.dataset.shopId;
+            const note = event.target.value;
+            let checkout = JSON.parse(sessionStorage.getItem(CHECKOUT_ITEM_STORAGE)) || {};
+            if (!(shopId in checkout)) {
+                checkout[shopId] = {};
+            }
+            if (id in checkout[shopId]) {
+                checkout[shopId][id].note = note;
+            } else {
+                checkout[shopId][id] = { note };
+            }
+            sessionStorage.setItem(CHECKOUT_ITEM_STORAGE, JSON.stringify(checkout));
+        }
+    });
+
+    document.addEventListener(SESSION_EVENT_STORE, calculateTotalPrice);
+}
+
+// Function to calculate total price based on session storage data
+function calculateTotalPrice() {
+    const checkout = JSON.parse(sessionStorage.getItem(CHECKOUT_ITEM_STORAGE)) || {};
+    let totalPrice = 0;
+
+    for (const shopId in checkout) {
+        for (const productId in checkout[shopId]) {
+            const product = checkout[shopId][productId];
+            const price = product.price - (product.price * (product.discount_percentage || 0) / 100);
+            totalPrice += price * product.pieces;
+        }
+    }
+
+    document.querySelector('#totalPrice').textContent = `$${totalPrice.toFixed(2)}`;
 }
 
 
