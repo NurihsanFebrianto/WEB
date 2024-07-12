@@ -119,16 +119,15 @@ async function getDataCheckout() {
     const shops = await fetch('shop.json').then(res => res.json())
     const products = await fetch('product.json').then(res => res.json())
     const carts = JSON.parse(sessionStorage.getItem(CART_ITEM_STORAGE)) || {};
-    const checkoutProduct = products.filter(data => Object.keys(carts).includes(data.id))
+    const checkoutProduct = products.filter(data => Object.keys(carts).map(data => parseInt(data)).includes(data.id))
 
-    console.log(checkoutProduct)
 
     const wrapingShop = shops.reduce((prev, curr) => ({
         ...prev,
         [curr.id]: {
             id: curr.id,
             name: curr.name,
-            products: checkoutProduct.filter(data => data.shop_id === curr.id).map(dt => ({ ...dt, pieces: carts[dt.id] }))
+            products: checkoutProduct.filter(data => data.shop_id == curr.id).map(dt => ({ ...dt, pieces: carts[dt.id] }))
         }
     }), {})
 
@@ -144,31 +143,35 @@ async function getDataCheckout() {
  * @returns {HTMLDivElement}
  */
 function generateProductItem(data) {
+    const discountPrice = (data.price - (data.price * data.discount_percentage / 100)).toFixed(2)
     const itemElement = document.createElement('div');
+    itemElement.classList.add('flex', 'gap-5', 'p-5')
     itemElement.innerHTML = `
         <input type="checkbox" class="mr-2 item-checkbox">
-        <img src="${data.images[0]}" alt="${data.name}">
+        <img class="w-[4rem] h-[4rem]" src="${data.images[0]}" alt="${data.title}">
         <div class="item-details">
-            <h3 class="font-semibold">${item.name}</h3>
+            <h3 class="font-semibold">${data.title}</h3>
             <div class="flex justify-between items-center mt-2">
                 <div>
-                    <span class="font-bold">$${data.price}</span>
-                    ${item.discount ? `
-                        <span class="text-sm line-through text-gray-500 ml-2">Rp${item.originalPrice.toLocaleString()}</span>
-                        <span class="text-sm text-red-500 ml-2">${item.discount}%</span>
-                    ` : ''}
+                    <span class="font-bold">$${discountPrice !== data.price ? discountPrice : data.price}</span>
+                    <div>
+                        ${discountPrice !== data.price ? `
+                            <span class="text-sm line-through text-gray-500">$${data.price}</span>
+                            <span class="text-sm text-red-500">${data.discount_percentage}%</span>
+                        ` : ''}
+                    </div>
                 </div>
                 <div class="item-actions">
-                    <button class="decrease-quantity" data-store="${storeIndex}" data-item="${itemIndex}">-</button>
-                    <span class="quantity">${item.quantity}</span>
-                    <button class="increase-quantity" data-store="${storeIndex}" data-item="${itemIndex}">+</button>
-                    <button class="delete-item" data-store="${storeIndex}" data-item="${itemIndex}"><i class="fas fa-trash-alt"></i></button>
+                    <button class="decrease-quantity" >-</button>
+                    <span class="quantity">${data.total}</span>
+                    <button class="increase-quantity" >+</button>
+                    <button class="delete-item" ><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>
         </div>
     `;
 
-    return document.createElement('h1')
+    return itemElement
 }
 
 
@@ -178,24 +181,28 @@ async function generateProductByShop() {
     const data = await getDataCheckout()
     
     for (const key in data) {
-        const parrentElement = document.createElement('div')
-        parrentElement.innerHTML = `
-            <input type="checkbox" class="item-checkbox" />
-            <span>${data[key].name}</span>
-        `
-        console.log(data[key])
-        // data[key].products.forEach(element => {
-        //     console.log('masuk sin  ')
-        //     parrentElement.appendChild(generateProductItem({
-        //         id: element.id,
-        //         title: element.title,
-        //         description: element.description,
-        //         discount_percentage: element.discount_percentage,
-        //         price: element.price
-        //     }))
-        // });
+        if (data[key].products.length !== 0) {
+            const parrentElement = document.createElement('div')
+            parrentElement.classList.add('p-4')
+            parrentElement.innerHTML = `
+                <input type="checkbox" class="item-checkbox" />
+                <span>${data[key].name}</span>
+            `
 
-        cartItems.appendChild(parrentElement)
+            data[key].products.forEach(element => {
+                parrentElement.appendChild(generateProductItem({
+                    id: element.id,
+                    title: element.title,
+                    description: element.description,
+                    discount_percentage: element.discount_percentage,
+                    price: element.price,
+                    images: element.images,
+                    total: element.pieces
+                }))
+            });
+
+            cartItems.appendChild(parrentElement)
+        }
     }
 }
 
