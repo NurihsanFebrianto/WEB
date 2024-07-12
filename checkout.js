@@ -165,7 +165,7 @@ async function getDataCheckout() {
 
 /**
  * 
- * @param {{ title: string, price: number, discount_percentage: number, description: string, id: number, total: number, images: string[] }} data 
+ * @param {{ title: string, price: number, discount_percentage: number, description: string, id: number, total: number, images: string[], shope_id: number }} data 
  * @returns {HTMLDivElement}
  */
 function generateProductItem(data) {
@@ -173,7 +173,7 @@ function generateProductItem(data) {
     const itemElement = document.createElement('div');
     itemElement.classList.add('flex', 'gap-5', 'p-5')
     itemElement.innerHTML = `
-        <input type="checkbox" class="mr-2 item-checkbox" data-id="${data.id}" data-shop-id="${data.shop_id}">
+        <input type="checkbox" class="mr-2 item-checkbox" data-shope="${data.shope_id}" data-id="${data.id}" data-shop-id="${data.shop_id}">
         <img class="w-[4rem] h-[4rem]" src="${data.images[0]}" alt="${data.title}">
         <div class="item-details">
             <h3 class="font-semibold">${data.title}</h3>
@@ -235,7 +235,8 @@ async function generateProductByShop() {
                     discount_percentage: element.discount_percentage,
                     price: element.price,
                     images: element.images,
-                    total: element.pieces
+                    total: element.pieces,
+                    shope_id: data[key].id
                 }))
             });
 
@@ -274,11 +275,18 @@ function calculateTotalPrice() {
 async function updateSumeryPrice() {
     const data = await getDataCheckout()
     const element = document.querySelector('#totalPrice')
+    const elementChilds = document.querySelectorAll(`input[data-shope]`)
+    elementChilds.forEach(e => {
+        e.checked = false
+    })
     const getPrice = data.map(dt => {
+        const elementChilds = document.querySelectorAll(`input[data-shope='${dt.shop_id}']`)
+        elementChilds.forEach(e => {
+            e.checked = true
+        })
         return discountPrice = ((dt.price - (((dt.price * dt.discount_percentage) / 100))) * dt.pieces).toFixed(2)
     })
 
-    console.log(getPrice)
     let totalPrice = 0
     getPrice.map(data => totalPrice += parseInt(data))
     element.textContent = `$${totalPrice}`
@@ -288,8 +296,6 @@ async function updateSumeryPrice() {
 
 
 async function sessionEventStoreHandle() {
-    console.log('si')
-    let checkout = JSON.parse(sessionStorage.getItem(CHECKOUT_ITEM_STORAGE)) || {};
     await updateSumeryPrice()
 }
 
