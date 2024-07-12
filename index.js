@@ -33,6 +33,7 @@ function generateProductItem(data) {
 
 
 
+
 /**
  * addProductItemToCart
  * This item use for add item to cart and will update ui in icon cart
